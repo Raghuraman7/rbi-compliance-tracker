@@ -639,9 +639,24 @@
       margin-bottom: 4px;
     }
 
+    body.dark-mode .amendment-summary-block strong {
+      color: var(--navy);
+    }
+
+    body.dark-mode .amendment-summary-block.has-changes strong {
+      color: var(--tag-misc);
+    }
+
     .amendment-summary-block.has-changes {
       background: rgba(90, 79, 207, 0.05);
       border: 1px solid rgba(90, 79, 207, 0.2);
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .amendment-summary-block.has-changes:hover {
+      background: rgba(90, 79, 207, 0.08);
+      border-color: rgba(90, 79, 207, 0.35);
     }
 
     .amendment-meta-row {
@@ -713,11 +728,33 @@
     }
 
     .gist-panel.open {
-      max-height: 1200px;
+      max-height: 450px;
+      overflow-y: auto;
       opacity: 1;
       padding: 14px 16px;
       margin-top: 12px;
       border-color: var(--rule);
+    }
+
+    /* Custom Scrollbar for Gist Panel */
+    .gist-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    .gist-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .gist-panel::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+    }
+    body.dark-mode .gist-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .gist-panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
+    body.dark-mode .gist-panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
     }
 
     /* Multi-section Gist Layout */
@@ -1019,6 +1056,7 @@
       border-bottom-color: #43399F;
     }
 
+
     .empty-state {
       text-align: center;
       padding: 60px 20px;
@@ -1231,6 +1269,9 @@
       Filtered to show only directions applicable to <strong>NBFC-ICC (Investment and Credit Company)</strong>.</p>
     <p>Refresh local data with <code>npm run fetch</code>.
       This is an independent, open-source project and is not affiliated with or endorsed by the RBI or SEBI.</p>
+    <p class="copyright-notice" style="margin-top: 12px; font-size: 11px; opacity: 0.8; border-top: 1px solid var(--rule); padding-top: 12px;">
+      © 2026 Kreon Financial Services Limited. All rights reserved. Kreon RegPulse™ is a trademark of Kreon Financial Services Limited.
+    </p>
   </footer>
 
   <script>
@@ -1917,6 +1958,16 @@
           `;
         }
 
+        // Determine if the amendment is recent (e.g., from 2025 onwards or ongoing)
+        let isRecent = true;
+        const yearMatch = data.lastUpdated.match(/\b(20\d{2})\b/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          if (year < 2025) {
+            isRecent = false;
+          }
+        }
+
         const additions = data.changes.filter(c => c.type === 'added').length;
         const revisions = data.changes.filter(c => c.type === 'revised').length;
         const removals = data.changes.filter(c => c.type === 'removed').length;
@@ -1928,15 +1979,27 @@
 
         const summaryStr = summaryParts.join(", ");
         
-        return `
-          <div class="amendment-summary-block has-changes">
-            <strong>Latest Update / Amendment (${escapeHtml(data.lastUpdated)}):</strong>
-            <div class="amendment-meta-row">
-              <span class="amendment-text">Consolidated amendments including <strong>${summaryStr}</strong>.</span>
-              <span class="change-tag-summary"><span class="pulse-dot"></span> Updates Available</span>
+        if (isRecent) {
+          return `
+            <div class="amendment-summary-block has-changes" onclick="triggerGistToggle(this)" title="Click to view details of updates">
+              <strong>Latest Update / Amendment (${escapeHtml(data.lastUpdated)}):</strong>
+              <div class="amendment-meta-row">
+                <span class="amendment-text">Consolidated amendments including <strong>${summaryStr}</strong>. <span style="text-decoration: underline; color: var(--navy); font-weight: 500; font-size: 12px; margin-left: 6px;">Click to view changes</span></span>
+                <span class="change-tag-summary"><span class="pulse-dot"></span> Updates Available</span>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          return `
+            <div class="amendment-summary-block">
+              <strong>Latest Update / Amendment (${escapeHtml(data.lastUpdated)}):</strong>
+              <div class="amendment-meta-row">
+                <span class="amendment-text">Consolidated amendments including <strong>${summaryStr}</strong>.</span>
+                <span class="change-tag-summary" style="background: rgba(86, 95, 92, 0.08); color: var(--ink-soft); border-radius: 3px; font-family: inherit; font-size: 10px; font-weight: normal; text-transform: none; letter-spacing: 0;">Historical Reference</span>
+              </div>
+            </div>
+          `;
+        }
       }
 
       function renderGistPanelHtml(idOrKey, gistPoints, panelId) {
@@ -1956,6 +2019,16 @@
               </div>
             </div>
           `;
+        }
+
+        // Determine if the amendment is recent (e.g., from 2025 onwards or ongoing)
+        let isRecent = true;
+        const yearMatch = data.lastUpdated.match(/\b(20\d{2})\b/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          if (year < 2025) {
+            isRecent = false;
+          }
         }
 
         const changesHtml = data.changes.map(c => {
@@ -1990,7 +2063,7 @@
                 </ul>
               </div>
               <div class="gist-section">
-                <h4>⚡ Recent Amendments (${escapeHtml(data.lastUpdated)})</h4>
+                <h4>${isRecent ? '⚡ Recent Amendments' : '📋 Consolidated Amendments'} (${escapeHtml(data.lastUpdated)})</h4>
                 <ul class="change-list">
                   ${changesHtml}
                 </ul>
@@ -2094,7 +2167,7 @@
 
         if (isExpanded) {
           btn.setAttribute("aria-expanded", "false");
-          btn.innerHTML = "🔍 View Summary Gist";
+          btn.innerHTML = "🔍 View Details & Updates";
           panel.classList.remove("open");
           setTimeout(() => {
             if (!panel.classList.contains("open")) {
@@ -2109,16 +2182,27 @@
           });
           document.querySelectorAll(".preview-btn").forEach(b => {
             b.setAttribute("aria-expanded", "false");
-            b.innerHTML = "🔍 View Summary Gist";
+            b.innerHTML = "🔍 View Details & Updates";
           });
 
           btn.setAttribute("aria-expanded", "true");
-          btn.innerHTML = "❌ Hide Summary Gist";
+          btn.innerHTML = "❌ Hide Details & Updates";
           panel.style.display = "block";
           // Trigger transition
           requestAnimationFrame(() => {
             panel.classList.add("open");
           });
+        }
+      };
+
+      // Click handler to trigger panel expansion from custom update blocks
+      window.triggerGistToggle = function (element) {
+        const card = element.closest(".direction-card");
+        if (card) {
+          const btn = card.querySelector(".preview-btn");
+          if (btn) {
+            btn.click();
+          }
         }
       };
 
@@ -2169,7 +2253,7 @@
             
             <div class="card-actions">
               ${dir.link ? `<a class="primary-link" href="${escapeHtml(dir.link)}" target="_blank" rel="noopener">View on rbi.org.in ↗</a>` : ""}
-              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'rbi-${idx}')">🔍 View Summary Gist</button>
+              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'rbi-${idx}')">🔍 View Details & Updates</button>
               ${hasPdf ? `<a class="pdf-link" href="${escapeHtml(dir.pdfUrl)}" target="_blank" rel="noopener">📄 Open PDF</a>` : ""}
             </div>
 
@@ -2217,7 +2301,7 @@
             
             <div class="card-actions">
               ${reg.link ? `<a class="sebi-link" href="${escapeHtml(reg.link)}" target="_blank" rel="noopener">View on sebi.gov.in ↗</a>` : ""}
-              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'sebi-${idx}')" style="color: var(--green); border-color: var(--green);">🔍 View Summary Gist</button>
+              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'sebi-${idx}')" style="color: var(--green); border-color: var(--green);">🔍 View Details & Updates</button>
               ${hasPdf ? `<a class="pdf-link" href="${escapeHtml(reg.pdfUrl)}" target="_blank" rel="noopener">📄 Open PDF</a>` : ""}
             </div>
 
@@ -2261,7 +2345,7 @@
             
             <div class="card-actions">
               ${act.link ? `<a class="primary-link" href="${escapeHtml(act.link)}" target="_blank" rel="noopener" style="color: var(--tag-misc); border-color: var(--tag-misc);">View Official Portal ↗</a>` : ""}
-              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'acts-${idx}')" style="color: var(--tag-misc); border-color: var(--tag-misc);">🔍 View Summary Gist</button>
+              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'acts-${idx}')" style="color: var(--tag-misc); border-color: var(--tag-misc);">🔍 View Details & Updates</button>
               ${act.pdfUrl ? `<a class="pdf-link" href="${escapeHtml(act.pdfUrl)}" target="_blank" rel="noopener">📄 Open PDF</a>` : ""}
             </div>
 
@@ -2305,7 +2389,7 @@
             
             <div class="card-actions">
               ${std.link ? `<a class="primary-link" href="${escapeHtml(std.link)}" target="_blank" rel="noopener" style="color: var(--amber); border-color: var(--amber);">View Official Portal ↗</a>` : ""}
-              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'ss-${idx}')" style="color: var(--amber); border-color: var(--amber);">🔍 View Summary Gist</button>
+              <button type="button" class="preview-btn" aria-expanded="false" onclick="toggleGistPanel(this, 'ss-${idx}')" style="color: var(--amber); border-color: var(--amber);">🔍 View Details & Updates</button>
               ${std.pdfUrl ? `<a class="pdf-link" href="${escapeHtml(std.pdfUrl)}" target="_blank" rel="noopener">📄 Open PDF</a>` : ""}
             </div>
 
