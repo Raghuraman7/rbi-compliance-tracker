@@ -1,7 +1,17 @@
 {
-  "lastChecked": "2026-07-21T11:20:34.329Z",
-  "count": 26,
+  "lastChecked": "2026-07-21T12:48:16.142Z",
+  "count": 27,
   "circulars": [
+    {
+      "id": "sebi-circ-102986",
+      "link": "https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html",
+      "title": "Certification Requirements for Distribution of Specialized Investment Funds (SIFs)",
+      "date": "Jul 21, 2026",
+      "pdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/jul-2026/1784633350069.pdf",
+      "department": null,
+      "summary": "Circular issued by SEBI: Certification Requirements for Distribution of Specialized Investment Funds (SIFs)",
+      "detectedAt": "2026-07-21T12:48:16.142Z"
+    },
     {
       "id": "sebi-circ-102978",
       "link": "https://www.sebi.gov.in/legal/circulars/jul-2026/operationalisation-of-freezing-of-holdings-of-promoter-and-promoter-group-including-their-associates-promoter-holdings-at-the-isin-level-under-regulation-24-i-ea-of-the-sebi-buy-back-of-securitie-_102978.html",
