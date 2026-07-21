@@ -1,11 +1,10 @@
-name: Update RBI feed data
+name: Update RBI & SEBI Regulatory Feed Data
 
 on:
   schedule:
-    # Once daily at 9:00 AM IST (3:30 AM UTC). Run `npm run fetch` locally anytime
-    # for an on-demand refresh.
-    - cron: "30 3 * * *"
-  workflow_dispatch: {} # lets you trigger a manual refresh from the Actions tab
+    # Run every 5 minutes for fast cloud backup checks.
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {} # Manual refresh from Actions tab
   push:
     branches: [main]
     paths:
@@ -27,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Fetch latest compliance data
+      - name: Fetch latest compliance & regulatory data
         run: npm run fetch
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -40,6 +39,7 @@ jobs:
         run: |
           git config user.name "regnote-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/master-directions.json data/sebi-regulations.json
-          git diff --cached --quiet && echo "No changes" || git commit -m "chore: refresh compliance data [skip ci]"
+          git add data/*.json
+          git diff --cached --quiet && echo "No changes" || git commit -m "chore: refresh regulatory compliance data [skip ci]"
           git push
+

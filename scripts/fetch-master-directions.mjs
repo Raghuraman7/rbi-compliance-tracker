@@ -5,19 +5,11 @@
 // Run with: node scripts/fetch-master-directions.mjs
 
 import { writeFile, readFile, mkdir } from "node:fs/promises";
-import nodemailer from "nodemailer";
+import { sendRegulatoryAlert } from "./email-notifier.mjs";
 
 const OUTPUT_PATH = new URL("../data/master-directions.json", import.meta.url);
 const NBFC_PAGE_URL = "https://www.rbi.org.in/Scripts/BS_ViewMasterDirections.aspx?did=411";
 const BASE_URL = "https://www.rbi.org.in/Scripts/";
-
-// Configured recipients
-const RECIPIENTS = process.env.EMAIL_RECIPIENTS
-  ? process.env.EMAIL_RECIPIENTS.split(",").map(e => e.trim())
-  : [
-    "raghuraman@stucred.com",
-    "umamaheswari.s@stucred.com"
-  ];
 
 /**
  * Parse a date string like "Nov 28, 2025" to ISO string.
@@ -84,7 +76,7 @@ function parseDirectionsFromViewstate(html) {
     if (rawHref.startsWith("http")) {
       link = rawHref;
     } else {
-      link = BASE_URL + rawHref.replace(/^\.\//, "");
+      link = BASE_URL + rawHref.replace(/^\./, "");
     }
 
     let dateStr = null;
@@ -142,65 +134,8 @@ function isNBFCICCApplicable(title) {
   return true;
 }
 
-async function sendEmailNotification(updatedDirs) {
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT || 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) {
-    console.log("------------------------------------------------------------------");
-    console.warn("⚠ SMTP credentials not configured (SMTP_HOST, SMTP_USER, SMTP_PASS).");
-    console.warn("To enable email notifications, set these environment variables in Vercel or GitHub Actions.");
-    console.warn(`Would have sent email for RBI updates to: ${RECIPIENTS.join(", ")}`);
-    console.log("------------------------------------------------------------------");
-    return;
-  }
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port: parseInt(port),
-    secure: parseInt(port) === 465,
-    auth: { user, pass }
-  });
-
-  const updatesHtml = updatedDirs.map(dir => `
-    <div style="margin-bottom: 20px; padding: 15px; border-left: 4px solid #1F3A5F; background-color: #f7f9fc;">
-      <h3 style="color: #1F3A5F; margin: 0 0 8px 0;">RBI Master Direction Update</h3>
-      <p style="margin: 0 0 5px 0;"><strong>Title:</strong> ${dir.title}</p>
-      <p style="margin: 0 0 10px 0;"><strong>Issued Date:</strong> ${dir.issuedDateRaw || "N/A"}</p>
-      <a href="${dir.link}" style="background-color: #1F3A5F; color: white; padding: 8px 12px; text-decoration: none; border-radius: 3px; font-size: 13px; display: inline-block; margin-right: 10px;">View on RBI ↗</a>
-      ${dir.pdfUrl ? `<a href="${dir.pdfUrl}" style="background-color: #333; color: white; padding: 8px 12px; text-decoration: none; border-radius: 3px; font-size: 13px; display: inline-block;">Download PDF 📄</a>` : ""}
-    </div>
-  `).join("");
-
-  const emailBody = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h2 style="color: #1F3A5F; border-bottom: 2px solid #1F3A5F; padding-bottom: 8px;">Kreon RegPulse</h2>
-      <p>Hello,</p>
-      <p>A new or updated RBI Master Direction applicable to NBFC-ICC has been detected:</p>
-      ${updatesHtml}
-      <p style="font-size: 12px; color: #777; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px;">
-        This is an automated notification from your Kreon RegPulse instance.
-      </p>
-    </div>
-  `;
-
-  try {
-    const info = await transporter.sendMail({
-      from: `"Kreon RegPulse" <${user}>`,
-      to: RECIPIENTS.join(", "),
-      subject: `🚨 Kreon RegPulse Alert: RBI NBFC-ICC Master Directions Updates (${updatedDirs.length})`,
-      html: emailBody,
-    });
-    console.log(`RBI Email notification successfully sent! Message ID: ${info.messageId}`);
-  } catch (err) {
-    console.error("Failed to send RBI email notification:", err);
-  }
-}
-
-async function main() {
-  console.log("Fetching RBI Master Directions for NBFCs...");
+export async function checkRbiMasterDirections() {
+  console.log("🔍 Checking RBI Master Directions...");
 
   const res = await fetch(NBFC_PAGE_URL, {
     headers: {
@@ -226,20 +161,18 @@ async function main() {
     .map((d) => ({ ...d, applicableTo: "Other NBFC sub-type" }));
 
   console.log(`NBFC-ICC applicable: ${nbfcIccDirections.length}`);
-  console.log(`Excluded (other sub-types): ${excludedDirections.length}`);
 
   // Compare with previous state to detect updates
   const previousData = await loadPreviousData();
   const updatedDirs = [];
 
   nbfcIccDirections.forEach(dir => {
-    // Find direction in previous run by matching partial titles
     const prev = previousData.directions.find(p => p.link === dir.link);
     if (!prev) {
-      console.log(`New Master Direction detected: ${dir.title}`);
+      console.log(`✨ New RBI Master Direction detected: ${dir.title}`);
       updatedDirs.push(dir);
     } else if (prev.title !== dir.title) {
-      console.log(`Updated Master Direction title detected: ${dir.title}`);
+      console.log(`✨ Updated RBI Master Direction title detected: ${dir.title}`);
       updatedDirs.push(dir);
     }
   });
@@ -253,7 +186,7 @@ async function main() {
     sourceUrl: NBFC_PAGE_URL,
     category: "NBFC-ICC",
     categoryDescription:
-      "Investment and Credit Companies — the residual NBFC category under RBI's Scale Based Regulation (SBR). These are NBFCs primarily engaged in lending and investment activities.",
+      "Investment and Credit Companies — the residual NBFC category under RBI's Scale Based Regulation (SBR).",
     count: nbfcIccDirections.length,
     directions: nbfcIccDirections,
     excluded: excludedDirections,
@@ -266,13 +199,30 @@ async function main() {
   );
 
   if (updatedDirs.length > 0 && previousData.directions.length > 0) {
-    await sendEmailNotification(updatedDirs);
+    console.log(`🚨 Triggering INSTANT EMAIL ALERT for ${updatedDirs.length} updated RBI Master Direction(s)...`);
+    await sendRegulatoryAlert({
+      source: "RBI",
+      category: "Master Direction",
+      updates: updatedDirs.map(d => ({
+        id: d.id,
+        title: d.title,
+        link: d.link,
+        pdfUrl: d.pdfUrl,
+        date: d.issuedDateRaw,
+        summary: `Updated RBI Master Direction for NBFC-ICC: ${d.title}`
+      }))
+    });
   } else {
     console.log("No new RBI Master Direction updates detected.");
   }
+
+  return updatedDirs;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith("fetch-master-directions.mjs")) {
+  checkRbiMasterDirections().catch((err) => {
+    console.error("Fatal error in checkRbiMasterDirections:", err);
+    process.exit(1);
+  });
+}
+
